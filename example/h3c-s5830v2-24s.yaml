@@ -1,0 +1,528 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+  - uuid: 8dfe60300b0445b4bc586de989017a6d
+    name: Templates/Network devices
+  templates:
+  - uuid: 0286171cf94d41abbe31633c9d5c90bc
+    template: H3C S5830V2-24S by SNMP
+    name: H3C S5830V2-24S by SNMP
+    description: 'H3C S5830V2-24S（Comware 7.1.045 R2432P03，24 口万兆 SFP+ 核心交换机）专用模板。
+
+
+      ## sysObjectID = 1.3.6.1.4.1.25506.1.690（企业号 25506 = H3C）
+
+
+      ## CPU / 内存 / 温度全部经 CLI 实测校准
+
+      私有表 HH3C-ENTITY-EXT-MIB 索引 192（主控板）：
+
+      | 指标 | OID 末段 | 实测值 | CLI 对照 |
+
+      |---|---|---|---|
+
+      | CPU | .6.192 | 3~6% 波动 | display cpu-usage 3~6% ✓ |
+
+      | 内存% | .8.192 | 34 | display memory 35.4% ✓ |
+
+      | 内存总量 | .10.192 | 2092855296 B | Total 2043804 KB ✓ |
+
+      | 温度 | .12.192 | 41℃ | hotspot 1 = 41℃ ✓ |
+
+
+      ## 关键限制
+
+      - **ifSpeed 不可用**：2.2.1.5 返回 4294967295（32 位溢出），带宽一律用 ifHighSpeed。
+
+      - HOST-RESOURCES-MIB、ENTITY-SENSOR-MIB(光功率 DDM) 均不支持。
+
+      - ENTITY-MIB 的型号/序列号字段为空，型号请从 system.descr 读取。
+
+      - LLDP 实际支持（1.0.8802.1.1.2.1.4.1.1.9 可查到邻居），但本模板未纳入。'
+    vendor:
+      name: H3C
+      version: S5830V2-24S
+    groups:
+    - name: Templates/Network devices
+    macros:
+    - macro: '{$IF.UTIL.MAX}'
+      value: '80'
+      description: 端口带宽利用率告警阈值（%）
+    - macro: '{$IF.ERRORS.WARN}'
+      value: '5'
+      description: 5 分钟接口错误包增量阈值
+    - macro: '{$IF.DISCARDS.WARN}'
+      value: '50'
+      description: 5 分钟接口丢弃包阈值
+    - macro: '{$CPU.MAX}'
+      value: '80'
+      description: CPU 利用率阈值（%）
+    - macro: '{$MEM.MAX}'
+      value: '90'
+      description: 内存利用率阈值（%）
+    - macro: '{$IF.NAME.NOT_MATCHES}'
+      value: ^(Vlan|InLoop|NULL|Register|M-Gig)
+      description: 不纳入发现的接口名正则
+    valuemaps:
+    - uuid: 226c7ef18ff442e0bd55a188a1304156
+      name: IF-MIB::ifOperStatus
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+      - value: '4'
+        newvalue: unknown
+      - value: '5'
+        newvalue: dormant
+      - value: '6'
+        newvalue: notPresent
+      - value: '7'
+        newvalue: lowerLayerDown
+    - uuid: 006d3ff8d4a34db3a619f1961acefcb9
+      name: IF-MIB::ifAdminStatus
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+    items:
+    - uuid: d66667eb6a8a4d7c9d0e7c5b4e16f79c
+      name: System name
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.5.0
+      key: system.name
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: SNMPv2-MIB::sysName.0
+    - uuid: 674931619c4c4b368cae85b5bdb20375
+      name: System description
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.1.0
+      key: system.descr
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: 实测包含型号：H3C S5830V2-24S / Comware 7.1.045 R2432P03
+    - uuid: e5f79a018094423f91b388241b2bbc34
+      name: System location
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.6.0
+      key: system.location
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+    - uuid: 84bc3df8a0de4161975e39861cd4f6ed
+      name: System contact
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.4.0
+      key: system.contact
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+    - uuid: cdbd0f92ac8d4a3dbabcb9ced798d76e
+      name: System uptime
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.3.0
+      key: system.uptime
+      delay: 5m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      units: uptime
+      description: Timeticks(1/100 秒) → ×0.01 换算为秒。Zabbix 的 value_type 里没有 UPTIME。
+      preprocessing:
+      - type: MULTIPLIER
+        parameters:
+        - '0.01'
+      triggers:
+      - uuid: f7d22ac6cdce4968ab62d947ec2ea85f
+        expression: last(/H3C S5830V2-24S by SNMP/system.uptime)<10m
+        name: Switch has been restarted
+        priority: INFO
+        description: uptime 小于 10 分钟，设备刚重启。
+    - uuid: c978ee1cbfc6410b8139927fa93d84ba
+      name: Hardware description
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.2.1
+      key: h3c.hw.descr
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: ENTITY-MIB entPhysicalDescr.1，本机实测为 "H3C"（型号请取 system.descr）
+    - uuid: 0c952ad032734ba8853c566557a2bd89
+      name: CPU utilization
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.25506.2.6.1.1.1.1.6.192
+      key: h3c.cpu.util
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      units: '%'
+      description: HH3C-ENTITY-EXT-MIB 索引 192（主控板）。实测与 `display cpu-usage` 一致（3%~6% 波动）。
+      triggers:
+      - uuid: be5143c3c9ab400abec29a55b9dff6a2
+        expression: min(/H3C S5830V2-24S by SNMP/h3c.cpu.util,5m)>{$CPU.MAX}
+        name: CPU utilization is high
+        priority: WARNING
+        description: 5 分钟最低值仍高于 {$CPU.MAX}%。
+    - uuid: e570db3af2d346dbb60a6c3d442ac293
+      name: Memory utilization
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.25506.2.6.1.1.1.1.8.192
+      key: h3c.mem.pct
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      units: '%'
+      description: 实测 34%，同时刻 `display memory` 为 35.4%（Used/Total）。
+      triggers:
+      - uuid: 1fa92eb6befd46dfa7651c67be8ee558
+        expression: min(/H3C S5830V2-24S by SNMP/h3c.mem.pct,5m)>{$MEM.MAX}
+        name: Memory utilization is high
+        priority: WARNING
+        description: 5 分钟最低值仍高于 {$MEM.MAX}%。
+    - uuid: d0d76d142745488288460a85494e5f90
+      name: Memory total
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.25506.2.6.1.1.1.1.10.192
+      key: h3c.mem.total
+      delay: 5m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      units: B
+      description: 实测 2092855296 字节 = 2043804 KB，与 `display memory` 的 Total 完全一致。
+    - uuid: 8209d0aa1de242e68add7914dcca619e
+      name: Memory used
+      type: CALCULATED
+      key: h3c.mem.used
+      delay: 5m
+      history: 7d
+      trends: '0'
+      params: last(//h3c.mem.total)*last(//h3c.mem.pct)/100
+      value_type: FLOAT
+      units: B
+      description: 由 total × pct 计算，避免依赖含义未确认的私有列。
+    - uuid: e9579809c73547c5b3a0fcc7469d09a3
+      name: Temperature (hotspot 1)
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.25506.2.6.1.1.1.1.12.192
+      key: h3c.temp
+      delay: 5m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      units: C
+      description: 实测 41℃，与 `display environment` 的 hotspot 1 完全一致。设备侧告警阈值：Warning 62 / Alarm 77 / Shutdown 90。
+      triggers:
+      - uuid: f58e41ee75994cedb342e3257b0fe022
+        expression: min(/H3C S5830V2-24S by SNMP/h3c.temp,5m)>65
+        name: Temperature is high
+        priority: WARNING
+        description: 超过 65℃（设备自身 Warning 阈值为 62℃）。
+    - uuid: 3c605f86ea794e6ca5b143651f304e44
+      name: ICMP ping
+      type: SIMPLE
+      key: icmpping
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      triggers:
+      - uuid: 7fe6fdd2493d45b5aee4b68bd9c6e346
+        expression: max(/H3C S5830V2-24S by SNMP/icmppingloss,3m)>80
+        name: Switch is unreachable (ICMP)
+        priority: HIGH
+        description: 连续 3 分钟丢包 >80%。
+    - uuid: 1539f5d4d6b24464a4518b16ab18d8d3
+      name: ICMP ping loss
+      type: SIMPLE
+      key: icmppingloss
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: FLOAT
+      units: '%'
+    - uuid: a8009e10fff84f35b8b3a9162702cb5f
+      name: ICMP ping response time
+      type: SIMPLE
+      key: icmppingsec
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: FLOAT
+      units: s
+    discovery_rules:
+    - uuid: 155a39b8dc4d4960a61d4771d73b2911
+      name: Network interface discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#IFNAME},1.3.6.1.2.1.31.1.1.1.1,{#IFALIAS},1.3.6.1.2.1.31.1.1.1.18,{#IFOPERSTATUS},1.3.6.1.2.1.2.2.1.8,{#IFADMINSTATUS},1.3.6.1.2.1.2.2.1.7,{#IFHIGHSPEED},1.3.6.1.2.1.31.1.1.1.15,{#IFTYPE},1.3.6.1.2.1.2.2.1.3]
+      key: net.if.discovery
+      delay: 1h
+      filter:
+        evaltype: AND_OR
+        conditions:
+        - macro: '{#IFNAME}'
+          value: '{$IF.NAME.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+      description: 标准 IF-MIB 发现端口，默认排除 VLAN / 环回 / 空接口
+      item_prototypes:
+      - uuid: 43ac4da5c7a445ce97573f08610202ac
+        name: '{#IFNAME}: Operational status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}
+        key: net.if.status[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: IF-MIB::ifOperStatus
+        tags:
+        - tag: component
+          value: network
+      - uuid: e8e97a38b0e3463f980e8f8b046d69e9
+        name: '{#IFNAME}: Administrative status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.7.{#SNMPINDEX}
+        key: net.if.adminstatus[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: IF-MIB::ifAdminStatus
+        tags:
+        - tag: component
+          value: network
+      - uuid: daf238fb83f1432fbabf5b9b85e7571f
+        name: '{#IFNAME}: Interface speed'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}
+        key: net.if.speed[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: UNSIGNED
+        units: Mb/s
+        description: ifHighSpeed。本机 ifSpeed(2.2.1.5) 返回 4294967295 溢出值，不可用。
+        tags:
+        - tag: component
+          value: network
+      - uuid: 47153579bb5146e68015aadf744b9b3c
+        name: '{#IFNAME}: Interface alias'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.18.{#SNMPINDEX}
+        key: net.if.alias[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: network
+      - uuid: 9e124d54997a41c1913daa0f47a9f132
+        name: '{#IFNAME}: Bits received'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.6.{#SNMPINDEX}
+        key: net.if.in[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: bps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: network
+      - uuid: 81a71026c863477fb4415835ea05baf1
+        name: '{#IFNAME}: Bits sent'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.10.{#SNMPINDEX}
+        key: net.if.out[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: bps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: network
+      - uuid: f0f1f4e1666646adbcc4589ec72c8e11
+        name: '{#IFNAME}: Inbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}
+        key: net.if.in.errors[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: 12c3cb0fd8d545c1b7a57ba86fb596c4
+        name: '{#IFNAME}: Outbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}
+        key: net.if.out.errors[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: bed3f6bc2663432dbe1d5264084382b4
+        name: '{#IFNAME}: Inbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}
+        key: net.if.in.discards[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: 7e3357592c5a4c81b1e11a2d9d876f12
+        name: '{#IFNAME}: Outbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}
+        key: net.if.out.discards[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: f898e5d0b77c45b6aba3b4917224aa44
+        name: '{#IFNAME}: Unicast packets received'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.7.{#SNMPINDEX}
+        key: net.if.in.ucast[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: 4358c8f9c509430f88dd55c493520165
+        name: '{#IFNAME}: Unicast packets sent'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.11.{#SNMPINDEX}
+        key: net.if.out.ucast[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      trigger_prototypes:
+      - uuid: 5e6f9face6594bee80db25a64c628dde
+        expression: (last(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}])<>last(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}],#2)) and last(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}])=2
+        name: '{#IFNAME}: Link down'
+        priority: AVERAGE
+        description: "端口由 up 变 down 时告警（用状态变化判定，避免空闲端口刷屏）。\n若要「只要是 down 就持续告警」，改成：\n  last(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}])=2 and last(/H3C S5830V2-24S by SNMP/net.if.adminstatus[{#IFNAME}])=1"
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: d21f1d51ee7c4c1f9d7de40d0d0d827a
+        expression: last(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}])=2 and last(/H3C S5830V2-24S by SNMP/net.if.adminstatus[{#IFNAME}])=1
+        name: '{#IFNAME}: Port is down (enabled)'
+        priority: WARNING
+        status: DISABLED
+        description: 管理状态 up 但物理 down。默认禁用，避免空闲端口刷屏。
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 0e0c8c7b1a824ee6896ee9b047124de6
+        expression: avg(/H3C S5830V2-24S by SNMP/net.if.in[{#IFNAME}],5m)>0.01*{$IF.UTIL.MAX}*last(/H3C S5830V2-24S by SNMP/net.if.speed[{#IFNAME}])*1000000 and last(/H3C S5830V2-24S by SNMP/net.if.speed[{#IFNAME}])>0
+        name: '{#IFNAME}: High bandwidth utilization (inbound)'
+        priority: WARNING
+        description: 入向流量超过端口速率的 {$IF.UTIL.MAX}%。
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 5ca721afaa6542ce94df0ee766ddca04
+        expression: avg(/H3C S5830V2-24S by SNMP/net.if.out[{#IFNAME}],5m)>0.01*{$IF.UTIL.MAX}*last(/H3C S5830V2-24S by SNMP/net.if.speed[{#IFNAME}])*1000000 and last(/H3C S5830V2-24S by SNMP/net.if.speed[{#IFNAME}])>0
+        name: '{#IFNAME}: High bandwidth utilization (outbound)'
+        priority: WARNING
+        description: 出向流量超过端口速率的 {$IF.UTIL.MAX}%。
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 88ad2129b61244769bb40a92fae6f5cc
+        expression: sum(/H3C S5830V2-24S by SNMP/net.if.in.errors[{#IFNAME}],5m)>={$IF.ERRORS.WARN} or sum(/H3C S5830V2-24S by SNMP/net.if.out.errors[{#IFNAME}],5m)>={$IF.ERRORS.WARN}
+        name: '{#IFNAME}: Errors detected'
+        priority: WARNING
+        description: 5 分钟错误包增量超过 {$IF.ERRORS.WARN}，通常是光模块或线缆问题。
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 09115840659246bc8ff825ce3558bdba
+        expression: sum(/H3C S5830V2-24S by SNMP/net.if.in.discards[{#IFNAME}],5m)>={$IF.DISCARDS.WARN} or sum(/H3C S5830V2-24S by SNMP/net.if.out.discards[{#IFNAME}],5m)>={$IF.DISCARDS.WARN}
+        name: '{#IFNAME}: Discards detected'
+        priority: WARNING
+        description: 5 分钟丢弃包超过 {$IF.DISCARDS.WARN}。
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 5bad56c4b3024740be9de0be22c4b4d7
+        expression: (min(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}],15m)<2) and (max(/H3C S5830V2-24S by SNMP/net.if.status[{#IFNAME}],15m)>2)
+        name: '{#IFNAME}: Interface flapping'
+        priority: WARNING
+        description: 15 分钟内端口状态反复变化，通常是光模块/线缆接触不良。
+        tags:
+        - tag: scope
+          value: availability

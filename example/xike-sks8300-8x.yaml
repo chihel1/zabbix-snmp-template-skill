@@ -1,0 +1,623 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+  - uuid: 62f87e052ce3478f8ed620ddb324f464
+    name: Templates/Network devices
+  templates:
+  - uuid: d79e18b356974e03af2688aed610afa5
+    template: Xike SKS8300-8X by SNMP
+    name: Xike SKS8300-8X by SNMP
+    description: "希科 Xike SKS8300-8X（8 口万兆 SFP+ 交换机，芯片 RTL8390）专用模板。\n\n## 本模板的 OID 全部经过实测验证\n设备 sysObjectID 为 1.3.6.1.4.1.60709.1.1.1.1024（企业号 60709，**不是 Cisco**）。\n该设备固件实现了标准 MIB-II 与 IF-MIB/ifXTable、ENTITY-MIB、BRIDGE-MIB，\n但不支持 HOST-RESOURCES-MIB、ENTITY-SENSOR-MIB(DDM)、LLDP-MIB 和全部 Cisco 私有 MIB。\n\n### 已验证可用\n| 类别 | OID 来源 | 状态 |\n|---|---|---|\n| 系统信息 | 1.3.6.1.2.1.1.* | ✅ |\n| 端口表 ifTable | 1.3.6.1.2.1.2.2.1.* | ✅ |\n| 端口扩展 ifXTable（64 位计数器） | 1.3.6.1.2.1.31.1.1.1.* | ✅ |\n| 型号/序列号 | ENTITY-MIB 1.3.6.1.2.1.47.1.1.1.1.13.1 / .11.1 | ✅ |\n| MAC 地址表 | 1.3.6.1.2.1.17.4.3 | ✅ |\n| 温度/内存 | 私有树 1.3.6.1.4.1.60709.100.1.11.* | ⚠️ 见下 |\n\n### 两点重要说明\n1. **ifSpeed 不可用**：该设备 1.3.6.1.2.1.2.2.1.5 返回 4294967295（溢出垃圾值），\n   因此本模板带宽计算一律使用 ifHighSpeed(1.3.6.1.2.1.31.1.1.1.15)。\n2. **温度和内存为推断值**：私有树无任何文档，温度取自 60709.100.1.11.2~5\n   （4 个标量，实测在 85~92 之间小幅波动，符合传感器特征），\n   内存取自 60709.100.1.11.6/7（512MB 总量 / ~96MB 已用，符合设备规格）。\n   温度触发器**默认禁用**，请先在设备 Web 界面核对数值后再启用。\n\n### 发布前的准备\n1. 给端口加描述（ifAlias 目前全空），模板会自动读取。\n2. 导入后把主机上原来的 \"Cisco Catalyst 3750V2-24FS by SNMP\" 模板解绑，\n   否则会有 128 个永远取不到值的死键。\n"
+    vendor:
+      name: Xike
+      version: SKS8300-8X
+    groups:
+    - name: Templates/Network devices
+    macros:
+    - macro: '{$IF.UTIL.MAX}'
+      value: '80'
+      description: 端口带宽利用率告警阈值（百分比）
+    - macro: '{$IF.ERRORS.WARN}'
+      value: '5'
+      description: 5 分钟内接口错误包增量告警阈值
+    - macro: '{$IF.DISCARDS.WARN}'
+      value: '50'
+      description: 5 分钟内接口丢弃包增量告警阈值
+    - macro: '{$MEM.MAX}'
+      value: '90'
+      description: 内存占用率告警阈值（百分比）
+    - macro: '{$TEMP.MAX}'
+      value: '100'
+      description: 温度告警阈值（摄氏度）—— 需按实测校准后启用对应触发器
+    - macro: '{$IF.NAME.NOT_MATCHES}'
+      value: ^(Vlan|Loopback|NULL|InLoop)
+      description: 不纳入端口发现的接口名正则
+    valuemaps:
+    - uuid: a5898307291b456f8a73da09301935b0
+      name: IF-MIB::ifOperStatus
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+      - value: '4'
+        newvalue: unknown
+      - value: '5'
+        newvalue: dormant
+      - value: '6'
+        newvalue: notPresent
+      - value: '7'
+        newvalue: lowerLayerDown
+    - uuid: 69c3db6c515746dc8cb378ecad7af57d
+      name: IF-MIB::ifAdminStatus
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+    items:
+    - uuid: 0529aa089b8f49c28b28d4c98d3505d8
+      name: System name
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.5.0
+      key: system.name
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: SNMPv2-MIB::sysName.0
+      tags:
+      - tag: component
+        value: system
+    - uuid: 906c6fb61be54b93a2747ff15e34a233
+      name: System description
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.1.0
+      key: system.descr
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: 本设备仅返回 "Switch"，型号以 ENTITY-MIB 为准
+      tags:
+      - tag: component
+        value: system
+    - uuid: 9e46962e1a7f47f28d690079a9972114
+      name: System location
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.6.0
+      key: system.location
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+    - uuid: 1f10bbd560d24c29963531e7afece3e9
+      name: System contact
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.4.0
+      key: system.contact
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+    - uuid: 96704f9606da443ebe5300dd25d86668
+      name: System uptime
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.3.0
+      key: system.uptime
+      delay: 5m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      description: SNMPv2-MIB::sysUpTime.0 (Timeticks, 1/100 秒)。预处理 ×0.01 换算为秒；units=uptime 显示为可读时长。注意：Zabbix 7.4 的 value_type 枚举里没有 UPTIME。
+      tags:
+      - tag: component
+        value: system
+      triggers:
+      - uuid: 59fbfced454b4f079f87358402df5d2f
+        expression: last(/Xike SKS8300-8X by SNMP/system.uptime)<10m
+        name: Switch has been restarted
+        priority: INFO
+        description: uptime 小于 10 分钟，设备刚重启过。
+        tags:
+        - tag: scope
+          value: availability
+      units: uptime
+      preprocessing:
+      - type: MULTIPLIER
+        parameters:
+        - '0.01'
+    - uuid: aa5af1521af346cd94ec46be0a8e34fc
+      name: Hardware model
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.13.1
+      key: xike.hw.model
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: ENTITY-MIB::entPhysicalModelName.1 —— 实测返回 SKS8300-8X
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: 538105cf192c4766b14e21ef00a94a1d
+      name: Serial number
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.11.1
+      key: xike.hw.serial
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: ENTITY-MIB::entPhysicalSerialNum.1
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: dd03736eacf64f628e58336cdbeabb9f
+      name: Firmware version
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.3.0
+      key: xike.firmware
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: 私有树固件版本字段，实测返回 231222
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: d4bd7366612140d58918c07a84f4855d
+      name: Switch chip
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.1.0
+      key: xike.chip
+      delay: 1h
+      history: 7d
+      trends: '0'
+      value_type: CHAR
+      description: 实测返回 RTL8390
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: 57fd9951655346308616b53eed30b62d
+      name: Temperature sensor 1
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.2.0
+      key: xike.temp.1
+      delay: 5m
+      history: 7d
+      value_type: FLOAT
+      units: C
+      description: 私有 OID，推断为温度传感器（实测 85~92 波动）。无官方文档，使用前请与设备 Web 界面核对。
+      tags:
+      - tag: component
+        value: temperature
+      triggers:
+      - uuid: 8f3edfb466654230b46d58135639c83c
+        expression: min(/Xike SKS8300-8X by SNMP/xike.temp.1,5m)>{$TEMP.MAX} or min(/Xike SKS8300-8X by SNMP/xike.temp.2,5m)>{$TEMP.MAX} or min(/Xike SKS8300-8X by SNMP/xike.temp.3,5m)>{$TEMP.MAX} or min(/Xike SKS8300-8X by SNMP/xike.temp.4,5m)>{$TEMP.MAX}
+        name: Temperature is high
+        status: DISABLED
+        priority: WARNING
+        description: '温度超过 {$TEMP.MAX}℃。
+
+
+          ⚠️ 默认禁用：这 4 个温度项来自无文档的私有 OID，
+
+          请先在设备 Web 界面核对实际温度读数、确认无误后再启用本触发器。
+
+          '
+        tags:
+        - tag: scope
+          value: temperature
+    - uuid: 3cf87ffbbf1b49f590521cd7bee64cfc
+      name: Temperature sensor 2
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.3.0
+      key: xike.temp.2
+      delay: 5m
+      history: 7d
+      value_type: FLOAT
+      units: C
+      description: 私有 OID，推断为温度传感器。无官方文档，使用前请核对。
+      tags:
+      - tag: component
+        value: temperature
+    - uuid: e2ba59c01e0e4d1cb42c4204a8cf9e23
+      name: Temperature sensor 3
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.4.0
+      key: xike.temp.3
+      delay: 5m
+      history: 7d
+      value_type: FLOAT
+      units: C
+      description: 私有 OID，推断为温度传感器。无官方文档，使用前请核对。
+      tags:
+      - tag: component
+        value: temperature
+    - uuid: 07b112cc0b2f454dbce49964c9388935
+      name: Temperature sensor 4
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.5.0
+      key: xike.temp.4
+      delay: 5m
+      history: 7d
+      value_type: FLOAT
+      units: C
+      description: 私有 OID，推断为温度传感器。无官方文档，使用前请核对。
+      tags:
+      - tag: component
+        value: temperature
+    - uuid: 352ac8fa33734c5eb7ca28d422d46a56
+      name: Total memory
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.6.0
+      key: xike.mem.total
+      delay: 5m
+      history: 7d
+      value_type: UNSIGNED
+      units: B
+      description: 私有 OID，实测 536870912（512MB），符合设备规格
+      tags:
+      - tag: component
+        value: memory
+    - uuid: 2e3eefdcbaea41bb8deb83ec19377f23
+      name: Used memory
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.60709.100.1.11.7.0
+      key: xike.mem.used
+      delay: 5m
+      history: 7d
+      value_type: UNSIGNED
+      units: B
+      description: 私有 OID，实测 100712448（约 96MB）
+      tags:
+      - tag: component
+        value: memory
+    - uuid: 498b422d6ac24db6a1025701146a2446
+      name: Memory utilization
+      type: CALCULATED
+      key: xike.mem.pct
+      delay: 5m
+      history: 7d
+      trends: '0'
+      value_type: FLOAT
+      units: '%'
+      params: 100*last(//xike.mem.used)/last(//xike.mem.total)
+      description: 由 used/total 计算得出
+      tags:
+      - tag: component
+        value: memory
+      triggers:
+      - uuid: ca456af03715419b80443a452dc1b490
+        expression: min(/Xike SKS8300-8X by SNMP/xike.mem.pct,5m)>{$MEM.MAX}
+        name: Memory utilization is high
+        priority: WARNING
+        description: 内存占用超过 {$MEM.MAX}%。
+        tags:
+        - tag: scope
+          value: capacity
+    - uuid: d2199755cb8d461aa643e90df3b6ecd8
+      name: ICMP ping
+      type: SIMPLE
+      key: icmpping
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      description: 设备可达性
+      tags:
+      - tag: component
+        value: health
+      triggers:
+      - uuid: 00ea813d0b91448a93c27db239b23792
+        expression: max(/Xike SKS8300-8X by SNMP/icmppingloss,3m)>80
+        name: Switch is unreachable (ICMP)
+        priority: HIGH
+        description: 连续 3 分钟 ICMP 丢包 >80%，判定设备不可达。
+        tags:
+        - tag: scope
+          value: availability
+    - uuid: ec74de28bbc64a4fb12995eb750fdd27
+      name: ICMP ping loss
+      type: SIMPLE
+      key: icmppingloss
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: FLOAT
+      units: '%'
+      tags:
+      - tag: component
+        value: health
+    - uuid: 935752085736455aac59b55e26d76602
+      name: ICMP ping response time
+      type: SIMPLE
+      key: icmppingsec
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: FLOAT
+      units: s
+      tags:
+      - tag: component
+        value: health
+    discovery_rules:
+    - uuid: a708a11b6bd84954b0a35f1cbcd7675d
+      name: Network interface discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#IFNAME},1.3.6.1.2.1.31.1.1.1.1,{#IFDESCR},1.3.6.1.2.1.2.2.1.2,{#IFALIAS},1.3.6.1.2.1.31.1.1.1.18,{#IFOPERSTATUS},1.3.6.1.2.1.2.2.1.8,{#IFADMINSTATUS},1.3.6.1.2.1.2.2.1.7,{#IFHIGHSPEED},1.3.6.1.2.1.31.1.1.1.15,{#IFTYPE},1.3.6.1.2.1.2.2.1.3]
+      key: net.if.discovery
+      delay: 1h
+      filter:
+        evaltype: AND_OR
+        conditions:
+        - macro: '{#IFNAME}'
+          value: '{$IF.NAME.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+      description: 通过标准 IF-MIB/ifXTable 发现端口，排除 VLAN/Loopback 等虚拟接口
+      item_prototypes:
+      - uuid: d3a324ee3f33491594ad34111498bf82
+        name: '{#IFNAME}: Operational status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}
+        key: net.if.status[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: IF-MIB::ifOperStatus
+        description: IF-MIB::ifOperStatus.{#SNMPINDEX}
+        tags:
+        - tag: component
+          value: network
+      - uuid: a8150e0cc590443bacc9bb447de7b59d
+        name: '{#IFNAME}: Administrative status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.7.{#SNMPINDEX}
+        key: net.if.adminstatus[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: IF-MIB::ifAdminStatus
+        tags:
+        - tag: component
+          value: network
+      - uuid: eca11aaebe9443ebb6721de7d35609d8
+        name: '{#IFNAME}: Interface speed'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}
+        key: net.if.speed[{#IFNAME}]
+        delay: 5m
+        history: 7d
+        trends: '0'
+        value_type: UNSIGNED
+        units: Mb/s
+        description: 使用 ifHighSpeed 而非 ifSpeed —— 本设备 ifSpeed 返回 4294967295 溢出值
+        tags:
+        - tag: component
+          value: network
+      - uuid: cff73b2b1e7643689d54673bdac88108
+        name: '{#IFNAME}: Interface alias'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.18.{#SNMPINDEX}
+        key: net.if.alias[{#IFNAME}]
+        delay: 1h
+        history: 7d
+        trends: '0'
+        value_type: CHAR
+        description: 端口描述，建议在设备上为每个口填写
+        tags:
+        - tag: component
+          value: network
+      - uuid: 76d6c6aed7dc40d599b5aac58d29c6c9
+        name: '{#IFNAME}: Bits received'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.6.{#SNMPINDEX}
+        key: net.if.in[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: bps
+        description: ifHCInOctets 64 位计数器，换算为 bit/s
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: network
+      - uuid: df9264f1c0e74589b08baf41840abb7e
+        name: '{#IFNAME}: Bits sent'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.10.{#SNMPINDEX}
+        key: net.if.out[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: bps
+        description: ifHCOutOctets 64 位计数器，换算为 bit/s
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: network
+      - uuid: fcea15a7f99a497dabffe1f3dfd82086
+        name: '{#IFNAME}: Inbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}
+        key: net.if.in.errors[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: pps
+        description: ifInErrors 增量/秒
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: f0b480e3efb1419191d01c63c9b23ac3
+        name: '{#IFNAME}: Outbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}
+        key: net.if.out.errors[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: pps
+        description: ifOutErrors 增量/秒
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: 7c3fede68a8744558a168c70ee88a51e
+        name: '{#IFNAME}: Inbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}
+        key: net.if.in.discards[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: pps
+        description: ifInDiscards 增量/秒
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: 8517b8d758434836acf60351be43c43a
+        name: '{#IFNAME}: Outbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}
+        key: net.if.out.discards[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: pps
+        description: ifOutDiscards 增量/秒
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: b20d5b0592024059b116422e84bc3150
+        name: '{#IFNAME}: Unicast packets received'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.7.{#SNMPINDEX}
+        key: net.if.in.ucast[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      - uuid: dda672d6d02341fdb8514c370c85814e
+        name: '{#IFNAME}: Unicast packets sent'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.11.{#SNMPINDEX}
+        key: net.if.out.ucast[{#IFNAME}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        tags:
+        - tag: component
+          value: network
+      trigger_prototypes:
+      - uuid: 27f993cad2da439089016fe7ac8ef05a
+        expression: (last(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}])<>last(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}],#2)) and last(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}])=2
+        name: '{#IFNAME}: Link down'
+        priority: AVERAGE
+        description: "端口由 up 变为 down 时告警。\n\n采用「状态变化」而非「当前为 down」作为判定条件，\n这样插上空闲端口（从未 up 过）不会刷屏；代价是告警会在下一个采集周期自动恢复。\n如果你希望端口只要是 down 就持续告警，把表达式改成：\n  last(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}])=2 and last(/Xike SKS8300-8X by SNMP/net.if.adminstatus[{#IFNAME}])=1\n"
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 3be133fb290e49859f59793a2454daf1
+        expression: last(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}])=2 and last(/Xike SKS8300-8X by SNMP/net.if.adminstatus[{#IFNAME}])=1
+        name: '{#IFNAME}: Port is down (enabled)'
+        priority: WARNING
+        description: 端口管理状态为 up 但物理状态为 down（已插线但未连通）。默认禁用，避免空闲端口刷屏。
+        status: DISABLED
+        tags:
+        - tag: scope
+          value: availability
+      - uuid: 7b1be0f463574a488eea68d53dea01da
+        expression: avg(/Xike SKS8300-8X by SNMP/net.if.in[{#IFNAME}],5m)>0.01*{$IF.UTIL.MAX}*last(/Xike SKS8300-8X by SNMP/net.if.speed[{#IFNAME}])*1000000 and last(/Xike SKS8300-8X by SNMP/net.if.speed[{#IFNAME}])>0
+        name: '{#IFNAME}: High bandwidth utilization (inbound)'
+        priority: WARNING
+        description: 入向流量超过端口速率的 {$IF.UTIL.MAX}%。端口速率为 0（未连接）时不判定。
+        tags:
+        - tag: scope
+          value: performance
+      - uuid: 5dc223f6e5a547d1a19747743ef0408e
+        expression: avg(/Xike SKS8300-8X by SNMP/net.if.out[{#IFNAME}],5m)>0.01*{$IF.UTIL.MAX}*last(/Xike SKS8300-8X by SNMP/net.if.speed[{#IFNAME}])*1000000 and last(/Xike SKS8300-8X by SNMP/net.if.speed[{#IFNAME}])>0
+        name: '{#IFNAME}: High bandwidth utilization (outbound)'
+        priority: WARNING
+        description: 出向流量超过端口速率的 {$IF.UTIL.MAX}%。
+        tags:
+        - tag: scope
+          value: performance
+      - uuid: 1c2a31dc847b4e94aae604c01864c332
+        expression: sum(/Xike SKS8300-8X by SNMP/net.if.in.errors[{#IFNAME}],5m)>={$IF.ERRORS.WARN} or sum(/Xike SKS8300-8X by SNMP/net.if.out.errors[{#IFNAME}],5m)>={$IF.ERRORS.WARN}
+        name: '{#IFNAME}: Errors detected'
+        priority: WARNING
+        description: 5 分钟内入/出向错误包合计超过 {$IF.ERRORS.WARN}。通常是线缆、光模块或两端速率协商问题。
+        tags:
+        - tag: scope
+          value: errors
+      - uuid: e224e5f70739481f8570de224b130202
+        expression: sum(/Xike SKS8300-8X by SNMP/net.if.in.discards[{#IFNAME}],5m)>={$IF.DISCARDS.WARN} or sum(/Xike SKS8300-8X by SNMP/net.if.out.discards[{#IFNAME}],5m)>={$IF.DISCARDS.WARN}
+        name: '{#IFNAME}: Discards detected'
+        priority: WARNING
+        description: 5 分钟内丢弃包超过 {$IF.DISCARDS.WARN}。常见于缓存溢出或链路过载。
+        tags:
+        - tag: scope
+          value: errors
+      - uuid: f7d0102e09a54a6eb8f8ce6657a30254
+        expression: (min(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}],15m)<2) and (max(/Xike SKS8300-8X by SNMP/net.if.status[{#IFNAME}],15m)>2)
+        name: '{#IFNAME}: Interface flapping'
+        priority: WARNING
+        description: 15 分钟内端口状态反复变化，通常是光模块/线缆接触不良。
+        tags:
+        - tag: scope
+          value: availability

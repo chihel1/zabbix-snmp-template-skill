@@ -1,0 +1,189 @@
+# 最小可用模板骨架 —— 复制后按 discovery.md 的结论改
+#
+# 这个骨架本身是**结构正确**的，已经包含三类最容易写错的东西：
+#   1. 触发器嵌在 item 内部（模板级 triggers 会被 schema 拒绝）
+#   2. trigger 没有 uuid，trigger_prototype 有 uuid
+#   3. 枚举值全是大写字符串
+#
+# 用法:
+#   1. 把 <设备型号> / Example Switch by SNMP / OID 全部替换
+#   2. python3 scripts/validate-template.py 本文件
+#   3. bash scripts/verify-template-oids.sh 本文件 <HOST> <COMMUNITY>
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 1f2e3d4c5b6a79880a1b2c3d4e5f6071
+      name: Templates/Network devices
+  templates:
+    - uuid: 7a1b2c3d4e5f60718293a4b5c6d7e8f9
+      template: Example Switch by SNMP
+      name: Example Switch by SNMP
+      description: |
+        <设备型号> 专用模板。
+
+        ## OID 验证记录
+        sysObjectID = <1.3.6.1.4.1.XXXX...>
+        以下 OID 均已在真机验证可用：
+        - ...
+
+        ## 已知限制
+        <设备不支持的能力：LLDP / DDM / HOST-RESOURCES ...>
+      vendor:
+        name: <厂商>
+        version: <型号>
+      groups:
+        - name: Templates/Network devices
+      macros:
+        - macro: '{$IF.UTIL.MAX}'
+          value: '80'
+          description: 端口带宽利用率告警阈值（百分比）
+        - macro: '{$IF.ERRORS.WARN}'
+          value: '5'
+          description: 5 分钟内接口错误包增量阈值
+        - macro: '{$IF.NAME.NOT_MATCHES}'
+          value: '^(Vlan|Loopback|NULL|InLoop)'
+          description: 不纳入端口发现的接口名正则
+      valuemaps:
+        - uuid: 5ba0c1d2e3f4456789abcdef01234567
+          name: IF-MIB::ifOperStatus
+          mappings:
+            - value: '1'
+              newvalue: up
+            - value: '2'
+              newvalue: down
+            - value: '3'
+              newvalue: testing
+            - value: '4'
+              newvalue: unknown
+            - value: '5'
+              newvalue: dormant
+            - value: '6'
+              newvalue: notPresent
+            - value: '7'
+              newvalue: lowerLayerDown
+      items:
+        # ── 设备级：身份 ──────────────────────────────────────────
+        - uuid: 10000000000000000000000000000001
+          name: System name
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.5.0
+          key: system.name
+          delay: 1h
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          tags:
+            - tag: component
+              value: system
+
+        # ── 设备级：可用性（触发器嵌在此 item 下）────────────────
+        - uuid: 10000000000000000000000000000002
+          name: ICMP ping
+          type: SIMPLE
+          key: icmpping
+          delay: 1m
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          triggers:
+            # 模板里的 trigger 必须带 uuid（host 对象里的则不允许，别搞混）
+            - uuid: 60000000000000000000000000000001
+              expression: 'max(/Example Switch by SNMP/icmpping,3m)=0'
+              name: '设备不可达 (ICMP)'
+              priority: HIGH
+              description: '连续 3 分钟 ICMP 全丢，判定设备不可达。'
+              tags:
+                - tag: scope
+                  value: availability
+
+        # ── 设备级：硬件（推断值要标注 + 触发器默认禁用）──────────
+        - uuid: 10000000000000000000000000000003
+          name: Hardware model
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.13.1
+          key: dev.hw.model
+          delay: 1h
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          tags:
+            - tag: component
+              value: inventory
+      discovery_rules:
+        # ── 端口发现 ──────────────────────────────────────────────
+        - uuid: 20000000000000000000000000000001
+          name: Network interface discovery
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#IFNAME},1.3.6.1.2.1.31.1.1.1.1,{#IFDESCR},1.3.6.1.2.1.2.2.1.2,{#IFALIAS},1.3.6.1.2.1.31.1.1.1.18,{#IFOPERSTATUS},1.3.6.1.2.1.2.2.1.8,{#IFADMINSTATUS},1.3.6.1.2.1.2.2.1.7,{#IFHIGHSPEED},1.3.6.1.2.1.31.1.1.1.15]'
+          key: net.if.discovery
+          delay: 1h
+          filter:
+            evaltype: AND_OR
+            conditions:
+              - macro: '{#IFNAME}'
+                value: '{$IF.NAME.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+          item_prototypes:
+            - uuid: 30000000000000000000000000000001
+              name: '{#IFNAME}: Operational status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}'
+              key: 'net.if.status[{#IFNAME}]'
+              delay: 1m
+              history: 7d
+              trends: '0'
+              value_type: UNSIGNED
+              valuemap:
+                name: IF-MIB::ifOperStatus
+              tags:
+                - tag: component
+                  value: network
+
+            # ifHighSpeed 而不是 ifSpeed —— 见 pitfalls.md 第 2 条
+            - uuid: 30000000000000000000000000000002
+              name: '{#IFNAME}: Interface speed'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}'
+              key: 'net.if.speed[{#IFNAME}]'
+              delay: 5m
+              history: 7d
+              trends: '0'
+              value_type: UNSIGNED
+              units: Mb/s
+              tags:
+                - tag: component
+                  value: network
+
+            - uuid: 30000000000000000000000000000003
+              name: '{#IFNAME}: Bits received'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.31.1.1.1.6.{#SNMPINDEX}'
+              key: 'net.if.in[{#IFNAME}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: bps
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters: []
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              tags:
+                - tag: component
+                  value: network
+          trigger_prototypes:
+            - uuid: 40000000000000000000000000000001
+              expression: '(last(/Example Switch by SNMP/net.if.status[{#IFNAME}])<>last(/Example Switch by SNMP/net.if.status[{#IFNAME}],#2)) and last(/Example Switch by SNMP/net.if.status[{#IFNAME}])=2'
+              name: '{#IFNAME}: Link down'
+              priority: AVERAGE
+              description: |
+                端口由 up 变 down 时告警。
+
+                用「状态变化」而非「当前为 down」，避免插上空闲端口时刷屏。
+                若要「只要是 down 就持续告警」，改为：
+                  last(/Example Switch by SNMP/net.if.status[{#IFNAME}])=2 and last(/Example Switch by SNMP/net.if.adminstatus[{#IFNAME}])=1
+              tags:
+                - tag: scope
+                  value: availability
